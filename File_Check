@@ -1,0 +1,23 @@
+filename = "sqwr.txt"
+
+# List to store serial numbers with incorrect option counts
+incorrect_options_serials = []
+
+# Open and read the file
+with open(filename, 'r', encoding='utf-8') as file:
+    for line in file:
+        # Strip newline and other surrounding whitespace
+        line = line.strip()
+        # Split the line by semicolon
+        fields = line.split(';')
+        # Check if the line is correctly formatted
+        if len(fields) == 5:
+            serial_number, context, question, options, label = fields
+            # Split options by comma and remove surrounding spaces
+            option_list = [option.strip() for option in options.split(',')]
+            # Check the number of options
+            if len(option_list) != 3:
+                incorrect_options_serials.append(serial_number)
+
+# Display the list of serial numbers with incorrect option counts
+print("Serial numbers with incorrect option counts:", incorrect_options_serials)
