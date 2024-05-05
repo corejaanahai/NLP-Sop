@@ -1,0 +1,102 @@
+import torch
+from transformers import BertTokenizer, BertForMultipleChoice
+from torch.utils.data import DataLoader, Dataset
+import pandas as pd
+
+# Path to your dataset file
+file_path = 'sqwr.txt'
+
+# Load the tokenizer and model
+tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased')
+model = BertForMultipleChoice.from_pretrained('bert-base-multilingual-cased')
+model.eval()
+
+class HindiQADataset(Dataset):
+    def __init__(self, filename):
+        self.data = pd.read_csv(filename, delimiter=';', names=['id', 'context', 'question', 'options', 'label'])
+        self.data['options'] = self.data['options'].apply(eval)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        entry = self.data.iloc[idx]
+        question, context, options = entry['question'], entry['context'], entry['options']
+        choices = [context + " " + question + " " + option for option in options]
+        inputs = tokenizer(choices, max_length=128, padding='max_length', truncation=True, return_tensors="pt")
+        inputs = {key: val.squeeze(0) for key, val in inputs.items()}
+        label = torch.tensor(entry['label'])
+        return inputs, label
+
+# Load data
+dataset = HindiQADataset(file_path)
+loader = DataLoader(dataset, batch_size=1)
+
+# Function to calculate accuracy
+def calculate_accuracy(model, data_loader):
+    correct, total = 0, 0
+    k=1
+    with torch.no_grad():
+        for inputs, label in data_loader:
+            outputs = model(**inputs, labels=label)
+            predictions = torch.argmax(outputs.logits, dim=1)
+            correct += (predictions == label).sum().item()
+            total += label.size(0)
+
+
+
+            # Debugging: Print label values
+            print(f"Labels: {label}")
+            print("S.no", k)
+            k+=1
+
+            # Debugging: Print logits shape and values
+            print(f"Logits shape: {outputs.logits.shape}")
+            print(f"Logits values: {outputs.logits}")
+
+    return correct / total
+
+# Calculate accuracy
+accuracy = calculate_accuracy(model, loader)
+print(f"Accuracy: {accuracy:.2f}")
+
+This Python script defines a deep learning pipeline for evaluating a Hindi question answering system using BERT, a state-of-the-art transformer model for natural language processing tasks.
+
+
+def process_data(input_file, output_file):
+    # Read data from input file
+    with open(input_file, 'r', encoding='utf-8') as f:
+        data = f.readlines()
+
+    k=1
+
+    # Process each line
+    processed_data = []
+    for line in data:
+        parts = line.strip().split(';')  # Split the line into parts
+        serial_number = parts[0]
+        context = parts[1]
+        question = parts[2]
+        options = parts[3].split(',')   # Split options by comma
+        label = parts[4]
+        print(k)
+        k+=1
+
+        # Enclose options within square brackets
+        options_string = '[' + ', '.join([f'"{option}"' for option in options]) + ']'
+
+        # Form the processed line
+        processed_line = f"{serial_number}; {context}; {question}; {options_string}; {label}\n"
+        processed_data.append(processed_line)
+
+    # Write processed data to output file
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.writelines(processed_data)
+
+# Adjust file paths as needed
+input_file_path = 'Disability_status_data.docx.txt'   # Path to your input text file
+output_file_path = 'Disability_status_data_final.docx.txt'  # Path to your output text file
+
+# Process data and save to output file
+process_data(input_file_path, output_file_path)
+
